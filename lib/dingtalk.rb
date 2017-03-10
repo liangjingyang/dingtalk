@@ -6,9 +6,7 @@ require "dingtalk/api"
 require "dingtalk/client"
 
 require 'redis'
-require "rest-client"
 
 module Dingtalk
   ENDPOINT = "https://oapi.dingtalk.com"
-  # Your code goes here...
 end

@@ -2,8 +2,6 @@ module Dingtalk
   module Prpcrypt
     extend self
 
-    # 对密文进行解密.
-    # text 需要解密的密文
     def decrypt(aes_key, text, corpid)
       status = 200
       text        = Base64.decode64(text)
@@ -14,15 +12,12 @@ module Dingtalk
       xml_len     = len_list[0]
       xml_content = content[4...4 + xml_len]
       from_corpid = content[xml_len+4...content.size]
-      # TODO: refactor
-      if corpid != from_corpid
-        Rails.logger.debug("#{__FILE__}:#{__LINE__} Failure because #{corpid} != #{from_corpid}")
-        status = 401
+      if corpid == from_corpid
+        return xml_content
       end
-      [xml_content, status]
+      raise Dingtalk::Exception::CorpError.new
     end
 
-    # 加密
     def encrypt(aes_key, text, corpid)
       text    = text.force_encoding("ASCII-8BIT")
       random  = SecureRandom.hex(8)
@@ -34,13 +29,13 @@ module Dingtalk
     end
 
     private
-      def handle_cipher(action, aes_key, text)
-        cipher = OpenSSL::Cipher.new('AES-256-CBC')
-        cipher.send(action)
-        cipher.padding = 0
-        cipher.key     = aes_key
-        cipher.iv      = aes_key[0...16]
-        cipher.update(text) + cipher.final
-      end
+    def handle_cipher(action, aes_key, text)
+      cipher = OpenSSL::Cipher.new('AES-256-CBC')
+      cipher.send(action)
+      cipher.padding = 0
+      cipher.key     = aes_key
+      cipher.iv      = aes_key[0...16]
+      cipher.update(text) + cipher.final
+    end
   end
 end

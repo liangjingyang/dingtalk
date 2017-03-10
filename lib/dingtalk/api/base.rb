@@ -1,69 +1,42 @@
 module Dingtalk
   module Api
     class Base
-      ACCESS_TOKEN = "access_token"
-      JS_TICKET = "js_ticket"
-
-      def initialize(corp = nil)
-        @corp = corp
+      def initialize(client = nil)
+        @client = client
       end
 
-      def access_token
-        token = redis.get("#{@corp.corp_id}_#{ACCESS_TOKEN}")
-        token.to_s.empty? ? set_access_token : token
+
+      def get_access_token
+        @client.get_access_token if @client
       end
 
-      def set_access_token
-        Suite.new.set_corp_access_token(@corp.corp_id, @corp.permanent_code)
+      def get_jsapi_ticket
+        @client.get_jsapi_ticket if @client
       end
 
-      def js_ticket
-        ticket = redis.get("#{@corp.corp_id}_#{JS_TICKET}")
-        ticket.to_s.empty? ? set_js_ticket : ticket
+      def default_params
+        { access_token: get_access_token }
       end
 
-      def set_js_ticket
-        key = "#{@corp.corp_id}_#{JS_TICKET}"
-        res = http_get("get_jsapi_ticket?access_token=#{access_token}")
-        redis.set(key, res['ticket'])
-        redis.expire(key, res['expires_in'])
-        redis.get(key)
+      def http_get(url, params = {})
+        params = default_params.merge(params)
+        res = RestClient.get(request_url(url), {params: params})
+        JSON.parse(res)
       end
 
-      private
-        def default_params
-          { access_token: access_token }
-        end
+      def http_post(url, payload, params = {})
+        params = default_params.merge(params)
+        res = RestClient.post(request_url(url), payload.to_json, {content_type: :json, params: params})
+        JSON.parse(res)
+      end
 
-        def payload(url, params)
-          [ request_url(url), {
-            params: default_params.merge(params).to_json,
-            content_type: :json
-          }]
-        end
+      def base_url
+        ''
+      end
 
-        def http_get(url, params = {})
-          res = RestClient.get(request_url(url))
-          JSON.parse(res)
-        end
-
-        def http_post(url, params = {})
-          p = default_params.merge(params)
-          res = RestClient.post(request_url(url), p.to_json, content_type: :json)
-          JSON.parse(res)
-        end
-
-        def base_url
-          ''
-        end
-
-        def request_url(url)
-          "#{ENDPOINT}/#{base_url}/#{url}"
-        end
-
-        def redis
-          Dingtalk.dingtalk_redis
-        end
+      def request_url(url)
+        "#{ENDPOINT}#{base_url}#{url}"
+      end
     end
   end
 end
